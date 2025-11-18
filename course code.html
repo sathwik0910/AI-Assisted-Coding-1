@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura - Your AI Companion</title>
+    <!-- Load Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- INTERNAL CSS (Ensures styling works even if external scripts fail) --- */
+        
+        :root {
+            --bg-color: #111827; /* gray-900 */
+            --chat-bg: #1f2937; /* gray-800 */
+            --text-color: #f3f4f6; /* gray-100 */
+            --text-muted: #9ca3af; /* gray-400 */
+            --user-msg-bg: #2563eb; /* blue-600 */
+            --bot-msg-bg: #374151; /* gray-700 */
+            --border-color: #374151; /* gray-700 */
+            --accent-gradient-start: #3b82f6; /* blue-500 */
+            --accent-gradient-end: #9333ea; /* purple-600 */
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(to right, #60a5fa, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        header p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin: 0.25rem 0 0 0;
+        }
+
+        /* Chat Area */
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #chat-log {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Messages */
+        .message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            line-height: 1.5;
+            font-size: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @media (min-width: 768px) {
+            .message { max-width: 70%; }
+        }
+
+        .user-message {
+            background-color: var(--user-msg-bg);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .bot-message {
+            background-color: var(--bot-msg-bg);
+            color: var(--text-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+
+        .bot-message a {
+            color: #93c5fd; /* light blue */
+            text-decoration: underline;
+        }
+        
+        .bot-message strong {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Input Area */
+        .input-area-wrapper {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+        }
+
+        /* Buttons & Quick Actions */
+        .quick-actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .action-btn {
+            background-color: #374151;
+            color: #e5e7eb;
+            border: 1px solid #4b5563;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            background-color: #4b5563;
+            transform: translateY(-1px);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Specific Button Colors for Clarity */
+        #reframe-button { color: #93c5fd; } /* Light Blue */
+        #mindful-moment-button { color: #d8b4fe; } /* Light Purple */
+        #check-in-button { color: #86efac; } /* Light Green */
+        #start-over-button { color: #fca5a5; } /* Light Red */
+
+        /* Input Field Container */
+        .input-container {
+            display: flex;
+            align-items: center;
+            background-color: #1f2937;
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .input-container:focus-within {
+            border-color: #3b82f6;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 0.75rem;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        #send-button {
+            background: linear-gradient(to right, var(--accent-gradient-start), var(--accent-gradient-end));
+            border: none;
+            border-radius: 0.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            margin-left: 0.5rem;
+            transition: transform 0.2s;
+        }
+
+        #send-button:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        
+        #send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .disclaimer {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.75rem;
+        }
+
+        /* Loading Animation */
+        .loading-dots {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 1rem 1.5rem;
+        }
+        
+        .dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #9ca3af;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Aura</h1>
+        <p>Your supportive AI companion</p>
+    </header>
+
+    <div id="chat-container">
+        <div id="chat-log"></div>
+
+        <div id="loading-indicator" class="hidden loading-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span style="margin-left: 8px; color: #9ca3af; font-size: 0.875rem;">Aura is thinking...</span>
+        </div>
+
+        <div class="input-area-wrapper">
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <button id="reframe-button" class="action-btn">✨ Reframe Thought</button>
+                <button id="mindful-moment-button" class="action-btn">✨ Mindful Moment</button>
+                <button id="check-in-button" class="action-btn">🌿 Well-being Check-in</button>
+                <button id="start-over-button" class="action-btn">🔄 Start Over</button>
+            </div>
+
+            <!-- Quick Reply Container (for Check-in) -->
+            <div id="quick-reply-container" class="quick-actions hidden">
+                <!-- Quick reply buttons added dynamically -->
+            </div>
+
+            <!-- Text Input -->
+            <div id="text-input-container" class="input-container">
+                <input type="text" id="user-input" placeholder="Type your feelings here...">
+                <button id="send-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(45deg);">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <p class="disclaimer">
+                Aura is an AI, not a medical professional. If you're in crisis, please contact a crisis hotline or seek immediate help.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const chatLog = document.getElementById('chat-log');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const reframeButton = document.getElementById('reframe-button');
+        const mindfulMomentButton = document.getElementById('mindful-moment-button');
+        const startOverButton = document.getElementById('start-over-button');
+        const checkInButton = document.getElementById('check-in-button');
+        const quickReplyContainer = document.getElementById('quick-reply-container');
+        const textInputContainer = document.getElementById('text-input-container');
+
+        // Gemini API Configuration
+        const apiKey = "AIzaSyC0MQCwLR1PCo8Hm806ivVnWTznWD2MxPE"; // Provided by environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        const systemPrompt = `You are "Aura," a compassionate, empathetic, and supportive AI companion. Your primary purpose is to provide a safe, non-judgmental space for users to express their feelings.
+
+        Core Principles:
+        1.  **Empathy First:** Respond with kindness and validation.
+        2.  **Active Listening:** Reflect back what the user says.
+        3.  **Non-Judgmental:** Never criticize or dismiss feelings.
+        4.  **Crucial Boundary:** You are NOT a therapist or doctor. If a user mentions crisis/self-harm, gently guide them to real-world help.
+        5.  **Proactive Support:** * If the user asks for resources (music, meditation), use Google Search to find clickable links.
+            * If the user expresses a specific problem (anxiety, sleep), suggest the "Well-being Check-in", offer a simple technique, and provide a relevant YouTube link via search.
+
+        Tone: Warm, conversational, human-like.
+        Start with a gentle welcome message.`;
+        
+        let chatHistory = [];
+        let checkInState = null;
+        let checkInAnswers = [];
+        
+        const checkInQuestions = [
+            { question: "Let's check in. First, over the last week, how often have you felt low in energy or fatigued?", answers: ["Often", "Sometimes", "Rarely"] },
+            { question: "Okay. How often have you felt little interest or pleasure in doing things you normally enjoy?", answers: ["Often", "Sometimes", "Rarely"] },
+            { question: "Thanks. Last one: how often have you felt overwhelmed or had trouble coping with stress?", answers: ["Often", "Sometimes", "Rarely"] }
+        ];
+
+        function displayMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            
+            // Formatting
+            let formattedMessage = message.replace(/\n/g, '<br>');
+            formattedMessage = formattedMessage.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Markdown links [text](url)
+            formattedMessage = formattedMessage.replace(
+                /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+            );
+
+            // Raw URLs
+            formattedMessage = formattedMessage.replace(
+                /(\b(https?:\/\/[^\s<>"'()]+|www\.[^\s<>"'()]+))/g,
+                (match, url) => {
+                    const properUrl = url.startsWith('http') ? url : `https://${url}`;
+                    if (formattedMessage.includes(`href="${properUrl}"`)) return match;
+                    return `<a href="${properUrl}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+                }
+            );
+
+            messageElement.innerHTML = formattedMessage;
+            chatLog.appendChild(messageElement);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function showLoading(show) {
+            if (show) {
+                loadingIndicator.classList.remove('hidden');
+                setChatMode('loading');
+            } else {
+                loadingIndicator.classList.add('hidden');
+                if (checkInState === null) setChatMode('chat');
+                else setChatMode('check-in');
+            }
+        }
+
+        function setChatMode(mode) {
+            const isChat = mode === 'chat';
+            const isCheckIn = mode === 'check-in';
+            const isLoading = mode === 'loading';
+
+            textInputContainer.style.display = (isChat && !isLoading) ? 'flex' : 'none';
+            quickReplyContainer.classList.toggle('hidden', !isCheckIn || isLoading);
+            
+            // Enable/Disable controls
+            userInput.disabled = isLoading;
+            sendButton.disabled = isLoading;
+            
+            const actionButtons = [reframeButton, mindfulMomentButton, startOverButton, checkInButton];
+            actionButtons.forEach(btn => btn.disabled = isLoading || isCheckIn);
+            
+            if (isChat && !isLoading) userInput.focus();
+        }
+
+        async function fetchWithRetry(payload, maxRetries = 3) {
+            let delay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        async function callGemini(history, systemInstruction, tools = null) {
+            showLoading(true);
+            const payload = {
+                contents: history,
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                generationConfig: { temperature: 0.7, topP: 0.9, topK: 40 }
+            };
+            if (tools) payload.tools = tools;
+
+            try {
+                const result = await fetchWithRetry(payload);
+                const candidate = result.candidates?.[0];
+                if (!candidate || !candidate.content?.parts?.[0]?.text) {
+                    return null;
+                }
+                return candidate.content.parts[0].text;
+            } catch (error) {
+                console.error("Error:", error);
+                displayMessage("Connection issue. Please try again.", 'bot');
+                return null;
+            } finally {
+               // loading state handled by caller
+            }
+        }
+
+        async function handleSendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+            
+            chatHistory.push({ role: 'user', parts: [{ text: text }] });
+            displayMessage(text, 'user');
+            userInput.value = '';
+
+            const searchTool = [{ "google_search": {} }];
+            const botText = await callGemini(chatHistory, systemPrompt, searchTool);
+            showLoading(false);
+
+            if (botText) {
+                chatHistory.push({ role: 'model', parts: [{ text: botText }] });
+                displayMessage(botText, 'bot');
+            }
+        }
+
+        async function handleReframe() {
+            const thought = userInput.value.trim();
+            if (!thought) {
+                displayMessage("Please type the thought you want to reframe first.", 'bot');
+                return;
+            }
+            
+            const prompt = `You are helpful AI trained in CBT. The user has a negative thought: "${thought}". Gently and empathetically reframe this into a balanced perspective. Validate first.`;
+            const userDisplay = `[Reframing]: "${thought}"`;
+            
+            // Create temp history so we don't confuse the main chat context too much
+            const tempHistory = [...chatHistory, { role: 'user', parts: [{ text: `Help me reframe: "${thought}"` }] }];
+            
+            displayMessage(userDisplay, 'user');
+            userInput.value = '';
+
+            const botText = await callGemini(tempHistory, prompt, null);
+            showLoading(false);
+
+            if (botText) {
+                chatHistory.push({ role: 'user', parts: [{ text: userDisplay }] });
+                chatHistory.push({ role: 'model', parts: [{ text: botText }] });
+                displayMessage(botText, 'bot');
+            }
+        }
+
+        async function handleMindfulMoment() {
+            const prompt = `Provide a very short (1-3 sentences) simple mindfulness exercise or grounding technique immediately.`;
+            const userDisplay = `[Asked for Mindful Moment]`;
+            const tempHistory = [...chatHistory, { role: 'user', parts: [{ text: "Give me a mindful moment." }] }];
+
+            displayMessage(userDisplay, 'user');
+            const botText = await callGemini(tempHistory, prompt, null);
+            showLoading(false);
+
+            if (botText) {
+                chatHistory.push({ role: 'user', parts: [{ text: userDisplay }] });
+                chatHistory.push({ role: 'model', parts: [{ text: botText }] });
+                displayMessage(botText, 'bot');
+            }
+        }
+
+        // --- Check-in Logic ---
+        function handleWellBeingCheckIn() {
+            displayMessage("[Starting Well-being Check-in]", 'user');
+            chatHistory.push({ role: 'user', parts: [{ text: "[User started Check-in]" }] });
+            
+            checkInState = 0;
+            checkInAnswers = [];
+            setChatMode('check-in');
+            displayCheckInQuestion();
+        }
+
+        function displayCheckInQuestion() {
+            const q = checkInQuestions[checkInState];
+            displayMessage(q.question, 'bot');
+            
+            quickReplyContainer.innerHTML = '';
+            q.answers.forEach(ans => {
+                const btn = document.createElement('button');
+                btn.textContent = ans;
+                btn.className = 'action-btn';
+                btn.style.borderColor = '#10b981'; // green border for check-in
+                btn.onclick = () => handleCheckInAnswer(ans);
+                quickReplyContainer.appendChild(btn);
+            });
+        }
+
+        async function handleCheckInAnswer(answer) {
+            displayMessage(answer, 'user');
+            checkInAnswers.push(answer);
+            checkInState++;
+
+            if (checkInState < checkInQuestions.length) {
+                displayCheckInQuestion();
+            } else {
+                await finishCheckIn();
+            }
+        }
+
+        async function finishCheckIn() {
+            const prompt = `User completed check-in. Answers: 1.${checkInAnswers[0]}, 2.${checkInAnswers[1]}, 3.${checkInAnswers[2]}.
+            
+            Task:
+            1. **Our Check-in Result**: Acknowledge and gently interpret the result.
+            2. **Recommended Next Steps**: Recommend professional help.
+            3. **Resources**: Use Google Search to find and list:
+               - 2 links for online therapy (e.g. BetterHelp, Practo).
+               - 2 links for mental health helplines (India).
+            Format nicely with bold headers. Ensure links are raw URLs so they are clickable.`;
+
+            const tempHistory = [...chatHistory, { role: 'user', parts: [{ text: `Check-in complete: ${checkInAnswers.join(', ')}` }] }];
+            
+            const botText = await callGemini(tempHistory, prompt, [{ "google_search": {} }]);
+            showLoading(false);
+
+            if (botText) {
+                chatHistory.push({ role: 'user', parts: [{ text: "[Check-in Completed]" }] });
+                chatHistory.push({ role: 'model', parts: [{ text: botText }] });
+                displayMessage(botText, 'bot');
+            }
+            
+            checkInState = null;
+            setChatMode('chat');
+        }
+
+        async function handleStartOver() {
+            chatLog.innerHTML = '';
+            chatHistory = [];
+            checkInState = null;
+            setChatMode('chat');
+            await startConversation();
+        }
+
+        async function startConversation() {
+            const startMsg = { role: 'user', parts: [{ text: "Hello Aura. Start conversation." }] };
+            chatHistory = [startMsg];
+            const botText = await callGemini([startMsg], systemPrompt, null);
+            showLoading(false);
+            if (botText) {
+                chatHistory.push({ role: 'model', parts: [{ text: botText }] });
+                displayMessage(botText, 'bot');
+            }
+        }
+
+        // Event Listeners
+        sendButton.addEventListener('click', handleSendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleSendMessage();
+        });
+        reframeButton.addEventListener('click', handleReframe);
+        mindfulMomentButton.addEventListener('click', handleMindfulMoment);
+        startOverButton.addEventListener('click', handleStartOver);
+        checkInButton.addEventListener('click', handleWellBeingCheckIn);
+
+        window.onload = startConversation;
+
+    </script>
+</body>
+</html>
